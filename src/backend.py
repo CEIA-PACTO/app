@@ -1,0 +1,134 @@
+import traceback
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+
+from src.endpoints.recomendador import recomendar, avaliar
+from src.endpoints.formulario import UsuarioInput, AvaliacaoInput
+app = FastAPI(title="API de Recomendação Fitness", description="API para recomendar treinos personalizados e avaliar o progresso de usuários.", version="1.0.0")
+templates = Jinja2Templates(directory="src/templates")
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print("Erro de validação no endpoint:", request.url)
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=422,
+        content={"erro": "Erro de validação", "detalhes": exc.errors()},
+    )
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/questionario", include_in_schema=False)
+async def questionario(usuario: str = Form(...), senha: str = Form(...)):
+    return RedirectResponse(f"/questionario?usuario={usuario}&senha={senha}", status_code=303)
+
+@app.get("/questionario", response_class=HTMLResponse, include_in_schema=False)
+async def questionario_form(request: Request, usuario: str, senha: str):
+    context = {"request": request, "usuario": usuario, "senha": senha}
+    return templates.TemplateResponse("questionario.html", context)
+
+@app.post("/recomendar-form", response_class=HTMLResponse, include_in_schema=False)
+async def recomendar_form \
+(
+    request: Request,
+    usuario: str = Form(...),
+    senha: str = Form(...),
+    persona_primaria: str = Form(...),
+    persona_secundaria: str = Form(...),
+    importancia_amigos: int = Form(...),
+    importancia_resultados: int = Form(...),
+    importancia_diversao: int = Form(...),
+    Sexo: int = Form(...),
+    Idade: float = Form(...),
+    Altura: float = Form(...),
+    Peso: float = Form(...),
+    Hipertensao: int = Form(...),
+    Diabetes: int = Form(...),
+    IMC: float = Form(...),
+    Nivel: int = Form(...),
+    Objetivo: int = Form(...),
+    Tipo_Fitness: int = Form(...),
+):
+    dados = UsuarioInput(
+        usuario=usuario,
+        senha=senha,
+        Sexo=Sexo,
+        Idade=Idade,
+        Altura=Altura,
+        Peso=Peso,
+        Hipertensao=Hipertensao,
+        Diabetes=Diabetes,
+        IMC=IMC,
+        Nivel=Nivel,
+        Objetivo=Objetivo,
+        Tipo_Fitness=Tipo_Fitness,
+        persona_primaria=persona_primaria,
+        persona_secundaria=persona_secundaria,
+        importancia_amigos=importancia_amigos,
+        importancia_resultados=importancia_resultados,
+        importancia_diversao=importancia_diversao,
+    )
+
+    rec = recomendar(dados)
+    context = {
+        "request": request,
+        "usuario": usuario,
+        "senha": senha,
+        "recomendacao": rec,
+    }
+    return templates.TemplateResponse("recomendacao.html", context)
+
+@app.post("/avaliar-form", response_class=HTMLResponse, include_in_schema=False)
+async def avaliar_form(
+    request: Request,
+    usuario: str = Form(...),
+    senha: str = Form(...),
+    success: str = Form(...),
+    streak: int = Form(...),
+    progress_pct: float = Form(...),
+    rating: int = Form(...),
+    time: int = Form(...),
+):
+    dados = AvaliacaoInput(
+        usuario=usuario,
+        senha=senha,
+        success=True if success.lower() == "true" else False,
+        streak=streak,
+        progress_pct=progress_pct,
+        rating=rating,
+        time=time,
+    )
+
+    resp = avaliar(dados)
+    context = {"request": request, **resp}
+    return templates.TemplateResponse("avaliado.html", context)
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+
+@app.post("/recomendar", summary="Gerar recomendação",description="Recebe os dados do usuário e retorna uma recomendação de treino personalizada.")
+def post_recomendar(usuario: UsuarioInput):
+    try:
+        print(usuario)
+        return recomendar(usuario)
+
+    except Exception as e:
+        print("Erro ao executar 'recomendar':")
+        traceback.print_exc()
+        print("Mensagem de erro:", repr(e))
+        raise
+
+@app.post("/avaliar", summary="Avaliar progresso", description="Avalia o progresso do usuário com base no histórico de execução.")
+def post_avaliar(avaliacao: AvaliacaoInput):
+    """
+    Recebe dados de avaliação e retorna uma análise de progresso com base no desempenho do usuário.
+    """
+    print(avaliacao)
+    return avaliar(avaliacao)
+
+
