@@ -119,10 +119,11 @@ def recomendar(usuario_input):
             'Recomendacao_Sessoes': rec_sessoes
         }
 
-        csv_path = "opt/registro_recomendacoes.csv"
+        csv_path = Path("opt/registro_recomendacoes.csv")
         df_saida = pd.DataFrame([registro])
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if df_saida.exists():
+        if csv_path.exists():
             df_saida.to_csv(csv_path, mode='a', header=False, index=False)
         else:
             df_saida.to_csv(csv_path, index=False)
@@ -151,7 +152,8 @@ def avaliar(avaliacao_input: AvaliacaoInput):
 
     id_hash = gerar_id(usuario, senha)
 
-    rec_csv = "opt/registro_recomendacoes.csv"
+    rec_csv = Path("opt/registro_recomendacoes.csv")
+    rec_csv.parent.mkdir(parents=True, exist_ok=True)
     if not rec_csv.exists():
         raise HTTPException(status_code=404, detail="Nenhuma recomendação registrada ainda.")
 
@@ -178,7 +180,8 @@ def avaliar(avaliacao_input: AvaliacaoInput):
         'time': dados_dict['time']
     }
 
-    aval_csv = "opt/avaliacoes.csv"
+    aval_csv = Path("opt/avaliacoes.csv")
+    aval_csv.parent.mkdir(parents=True, exist_ok=True)
     df_aval = pd.DataFrame([avaliacao])
     if aval_csv.exists():
         df_aval.to_csv(aval_csv, mode='a', header=False, index=False)
